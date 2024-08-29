@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <div id = "app">
+  <head>
+    <link rel="stylesheet" href="/styles.css" />
+    <div id =header>
+       <a id= "header" href="/videos">Videos</a>
+    </div>
+   
+  </head>
+  <body>
+    <h1>Main page</h1>
+      <a href="/logout">Logout</a>
+      <form id="upload" action="/upload" method="post" enctype="multipart/form-data" >
+        <label id ="drop_zone_lable">Select or drop file below to upload</label>
+          <div id="drop_zone" >
+            <input id="fileSelect" type="file" name="uploadFile"></input>
+            
+          </div>
+       <input type="submit" value="Upload!"/>
+      </form>
+
+  </body>
+</div>
+</html>

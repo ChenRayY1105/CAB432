@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<div id = "app">
+<head>
+    <div id= "header">
+        <a href="/">Home</a>
+        <a  href="/login">Login</a>
+        <a  href="/register">Register</a>
+    </div>
+
+
+    <script src="/script.js" type="text/javascript"></script>
+    <link rel="stylesheet" href="/styles.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uploaded Videos</title>
+</head>
+<body>
+    <div id="videosList">
+        <h1>Uploaded Videos</h1>
+            <ul>
+                <!-- FILE_LIST -->
+            </ul>
+    </div>
+    <!-- Video Selector -->
+
+    
+    <form action ="/transcode" method="post" id ="videoForm">
+
+        <label for="videoSelector">Select a Video:</label>
+            <select id="videoSelector" onchange="selectVideo()">
+                <option > --Please choose an video </option>
+                <!-- Options will be populated by JavaScript -->
+            </select>
+
+        <input id= "test" type="hidden" name="videoId" id="hiddenVideoId" value="">
+        
+    <br>
+    <label for="formatSelector">Select Output Format:</label>
+        <select id="formatSelector" name="format">
+            <option value="mp4">MP4</option>
+            <option value="avi">AVI</option>
+            <option value="mov">MOV</option>
+        </select>
+    <br>
+        <input type="submit" value="Transcode Selected Video" onclick="startTranscoding(event)" />
+
+    </form>
+    
+    <!-- Progress Bar -->
+    <div id="progress-container">
+        <h3>Transcoding Progress</h3>
+        <progress id="progress-bar" value="0" max="100"></progress>
+        <span id="progress-text">0%</span>
+    </div>
+
+
+    </body>
+    </div>
+</html>
