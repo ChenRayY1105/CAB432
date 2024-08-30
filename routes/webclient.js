@@ -36,10 +36,15 @@ router.post("/login", async (req, res) => {
    if (token) {
        console.log("Successful login by user", username);
        res.cookie("token", token, {
-           httpOnly: true,
-           sameSite: "Strict",
+            httpOnly: false,      // Secure, prevents JavaScript access to the cookie
+            secure: process.env.NODE_ENV === 'production', // Send cookie only over HTTPS in production
+            sameSite: 'Lax',     // Adjust 'SameSite' as needed ('Lax' for most use cases)
+            maxAge: 30 * 60 * 1000, // Token expiry time (e.g., 30 minutes)
        });
-       res.redirect("/");
+       
+      console.log('Cookie set with token:', token); // Log the token
+      res.status(200).json({ message: 'Login successful', token: token });
+    
    } else {
        res.status(401).send("Invalid username or password");
    }
@@ -93,7 +98,8 @@ router.post("/register", (req, res) => {
 // Log out by deleting token cookie.  Redirect back to login.
 router.get("/logout", auth.authenticateCookie, (req, res) => {
    res.clearCookie("token");
-   res.redirect("/login");
+   // Send a response to the client
+   res.status(200).json({ message: 'Logout successful' });
 });
 
 router.post("/upload",auth.authenticateCookie, (req, res) => {
@@ -169,38 +175,38 @@ router.get("/videos", auth.authenticateCookie, (req, res) =>
 
 router.post("/transcode", auth.authenticateCookie, (req, res) => 
 {
-   const video_origin_name = req.body.videoId;
-   const outputformate = req.body.format;
-   const fileName = video_origin_name.split(".");
-   const filepath = path.join(__dirname, "..", "uploads", `${video_origin_name}`);
-
-   const videoId = uuidv4(); // Generate a unique ID for this transcoding job
-   progressData[videoId] = 0; // Initialize progress
-
    try {
-      // Step 2: Fetch the video details from the database
-      const outputFile = path.join(__dirname,"..", "transcoded", `transcode-${fileName[0]}.${outputformate}`);
+      const videoOriginName = req.body.videoId;
+      const outputFormat = req.body.format;
+      
+      if (!videoOriginName || !outputFormat) {
+        return res.status(400).json({ error: 'Invalid input data' });
+      }
+  
+      const fileName = videoOriginName.split('.');
+      const inputPath = path.join(__dirname, '..', 'uploads', videoOriginName);
+      const outputFile = path.join(__dirname, '..', 'transcoded', `transcode-${fileName[0]}.${outputFormat}`);
+
       // Step 3: Perform transcoding
-      ffmpeg(filepath)
+      ffmpeg(inputPath)
          .output(outputFile)
          .videoCodec('libx264') // Specify a video codec (e.g., libx264 for H.264 encoding)
 
-         .size('3840x2160') // Set resolution to 4K
+         // .size('3840x2160') // Set resolution to 4K
 
          // .fps(120) // Set frame rate to 120 fps
 
          .on('progress', (progress) => {
             console.log(`Transcoding progress - Current video time : ${progress.timemark} `);
             console.log(`Current frame: ${progress.frames}, Current FPS: ${progress.currentFps}`);
-            progressData[videoId] = progress.timemark; // Store progress percentage
          })
          .on('error', (err, stdout, stderr) => {
             console.error("Transcoding failed: ", err.message);
             delete progressData[videoId]; // Clean up on error
          })
          .on('end', () => {
-            console.log('Transcoding completed successfully.');
-            delete progressData[videoId]; // Clean up on completion
+            console.log('Transcoding completed successfully');
+            
             res.download(outputFile, function(err){
                if (err){
                   console.error("Download error : " + err)
@@ -209,41 +215,67 @@ router.post("/transcode", auth.authenticateCookie, (req, res) =>
                   console.log("Download complete : " + outputFile)
                }
             });
-            // res.redirect("/videos");
-         })
-         .run();
+            // res.json({ message: 'Transcoding completed successfully' });
+          })
+          .run();
 
          
 
    } catch (error) {
-         console.error("Error during transcoding process: ", error);
+      console.error('Error during transcoding process:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
    }
 });
 
 
-// Endpoint to get progress
 router.get('/progress', auth.authenticateCookie, (req, res) => {
-   const videoId = req.query.videoId;
-   if (progressData[videoId] !== undefined) {
+   try {
+     const videoId = req.query.videoId;
+ 
+     if (!videoId) {
+       console.error('No video ID provided');
+       return res.status(400).json({ error: 'No video ID provided' });
+     }
+     console.log('Fetching progress for video ID:', videoId);
+ 
+     if (progressData[videoId] !== undefined) {
        res.json({ progress: progressData[videoId] });
-   } else {
+     } else {
        res.json({ progress: 0 });
+     }
+   } catch (error) {
+     console.error('Error in /progress route:', error);
+     res.status(500).json({ error: 'Internal Server Error' });
+   }
+ });
+ 
+// webclient.js (Express server setup)
+router.get('/getVideos', auth.authenticateCookie, (req, res) => {
+   try {
+       const userToken = req.cookies.token;
+       const userID = jwt.decode(userToken, tokenSecret).user_id;
+
+       const sql = `SELECT id, original_file_name FROM videos WHERE user_id = ?`; // Using prepared statement to prevent SQL injection
+
+       db.all(sql, [userID], (err, rows) => {
+           if (err) {
+               console.error('Database error:', err.message); // Added logging
+               res.status(500).json({ error: err.message });
+               return;
+           }
+
+           res.json(rows); // Send the videos as JSON
+       });
+   } catch (error) {
+       console.error('Error decoding token or fetching videos:', error); // Added logging
+       res.status(500).json({ error: 'Internal Server Error' });
    }
 });
 
-router.get('/getVideos',auth.authenticateCookie, (req, res) => {
-   const userToken = req.cookies.token;
-   const userID = jwt.decode(userToken, tokenSecret).user_id;
-
-   const sql = `SELECT id, original_file_name FROM videos WHERE user_id = ${userID} `; // Adjust table and column names as necessary
-
-   db.all(sql, [], (err, rows) => {
-       if (err) {
-           res.status(500).json({error: err.message});
-           return;
-       }
-       res.json(rows);
-   });
-});
+// webclient.js or a similar server file
+router.get('/check-server', (req, res) => {
+   res.status(200).json({ status: 'ok' }); // Respond with a simple status check
+ });
+ 
 
 module.exports = router;
