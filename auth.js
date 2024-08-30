@@ -39,12 +39,9 @@ const generateAccessToken = async (username, password) => {
          user_id : user.user_id
       };
        const token = jwt.sign(userData, tokenSecret, { expiresIn: "30m" });
-       const decoded =jwt.decode(token, tokenSecret)
-       
-       console.log("decoded" + decoded.user_id)
+
        console.log("Successful login by user", username);
        
-      //  console.log(token);
        return token;
 
    } catch (err) {
@@ -56,7 +53,6 @@ const generateAccessToken = async (username, password) => {
 
 const authenticateCookie = (req, res, next) => {
    // Check to see if the cookie has a token
-   // console.log(req.cookies)
    token = req.cookies.token;
    if (!token) {
       console.log("Cookie auth token missing.");
@@ -66,11 +62,6 @@ const authenticateCookie = (req, res, next) => {
    // Check that the token is valid
    try {
       const user = jwt.verify(token, tokenSecret);
-
-      // console.log(
-      //    `Cookie token verified for user: ${user.username} at URL ${req.url}`
-      // );
-
       // Add user info to the request for the next handler
       req.user = user;
       next();
@@ -99,9 +90,9 @@ const authenticateToken = (req, res, next) => {
    try {
       const user = jwt.verify(token, tokenSecret);
 
-      console.log(
-         `authToken verified for user: ${user.username} at URL ${req.url}`
-      );
+      // console.log(
+      //    `authToken verified for user: ${user.username} at URL ${req.url}`
+      // );
 
       // Add user info to the request for the next handler
       req.user = user;

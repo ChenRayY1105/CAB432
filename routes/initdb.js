@@ -30,7 +30,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
         if (err) {
             console.error('Error creating videos table:', err.message);
         } else {
-            // console.log('Videos table initialized.');
+            console.log('Videos table initialized.');
         }
     });
 
@@ -45,7 +45,7 @@ const db = new sqlite3.Database(dbPath, (err) => {
         if (err) {
             console.error('Error creating users table:', err.message);
         } else {
-            // console.log('Users table initialized.');
+            console.log('Users table initialized.');
         }
     });
     }
@@ -67,8 +67,6 @@ function checkUserExists(username, callback) {
           return callback(null, false);
        }
  
-       // If user exists
-       console.log("User exists:", row);
        return callback(null, true);
     });
 }

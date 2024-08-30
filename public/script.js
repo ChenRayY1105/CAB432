@@ -19,7 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
 function selectVideo() {
     const videoSelector = document.getElementById('videoSelector');
     const selectedVideoId = videoSelector.value;
-    console.log('Selected video ID:', selectedVideoId);
 
     var elem = document.getElementById("test");
     var ID = document.getElementById("videoSelector")
@@ -62,18 +61,3 @@ function pollProgress(videoId) {
     }, 1000); // Poll every second
 }
 
-//Drag and drop 
-const dropZone = document.getElementById('drop_zone');
-
-dropZone.addEventListener('dragover', (event) => {
-    event.stopPropagation();
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
-});
-
-dropZone.addEventListener('drop', (event) => {
-    event.stopPropagation();
-    event.preventDefault();
-    const files = event.dataTransfer.files; // FileList object.
-    handleFiles(files);
-});

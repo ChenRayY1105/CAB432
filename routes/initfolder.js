@@ -14,9 +14,7 @@ function initializeFolders() {
             // Folder does not exist, create it
             fs.mkdirSync(folderPath, { recursive: true });
             console.log(`Folder created: ${folderPath}`);
-        } else {
-            console.log(`Folder already exists: ${folderPath}`);
-        }
+        } 
     });
 }
 

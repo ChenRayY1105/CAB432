@@ -61,7 +61,6 @@ router.post("/register", (req, res) => {
       return;
    }
    const test = db.get(`SELECT * FROM users WHERE username = "${username}"`)
-   console.log("Testing " + test + " user name = " + username + "User.username" + test.username) 
     // Check if the user already exists
     checkUserExists(username, (err, exists) => {
       if (err) {
@@ -93,8 +92,6 @@ router.post("/register", (req, res) => {
 
 // Log out by deleting token cookie.  Redirect back to login.
 router.get("/logout", auth.authenticateCookie, (req, res) => {
-
-   // console.log("Logout by user", req.user.username);
    res.clearCookie("token");
    res.redirect("/login");
 });
@@ -102,8 +99,6 @@ router.get("/logout", auth.authenticateCookie, (req, res) => {
 router.post("/upload",auth.authenticateCookie, (req, res) => {
    const userToken = req.cookies.token;
    const userID = jwt.decode(userToken, tokenSecret).user_id;
-   console.log(userID)
-   
    // input name in index.html is "uploadFile"
    const file = req.files.uploadFile;
    const originalFileName = file.name;
@@ -143,7 +138,6 @@ router.get("/videos", auth.authenticateCookie, (req, res) =>
 {
    const userToken = req.cookies.token;
    const userID = jwt.decode(userToken, tokenSecret).user_id;
-   console.log(userID);
    const videoshtmlpath = path.join(__dirname, "../public/videos.html")
 
       fs.readFile(videoshtmlpath, "utf-8", (err, htmlData) => {
@@ -183,9 +177,6 @@ router.post("/transcode", auth.authenticateCookie, (req, res) =>
    const videoId = uuidv4(); // Generate a unique ID for this transcoding job
    progressData[videoId] = 0; // Initialize progress
 
-   //const expPaath = path.join(__dirname, "uploads")
-   console.log("FIlePath = " + filepath)
-
    try {
       // Step 2: Fetch the video details from the database
       const outputFile = path.join(__dirname,"..", "transcoded", `transcode-${fileName[0]}.${outputformate}`);
@@ -194,14 +185,14 @@ router.post("/transcode", auth.authenticateCookie, (req, res) =>
          .output(outputFile)
          .videoCodec('libx264') // Specify a video codec (e.g., libx264 for H.264 encoding)
 
-         // .size('3840x2160') // Set resolution to 4K
+         .size('3840x2160') // Set resolution to 4K
 
          // .fps(120) // Set frame rate to 120 fps
 
          .on('progress', (progress) => {
             console.log(`Transcoding progress - Current video time : ${progress.timemark} `);
             console.log(`Current frame: ${progress.frames}, Current FPS: ${progress.currentFps}`);
-            progressData[videoId] = progress.percent; // Store progress percentage
+            progressData[videoId] = progress.timemark; // Store progress percentage
          })
          .on('error', (err, stdout, stderr) => {
             console.error("Transcoding failed: ", err.message);
@@ -243,7 +234,6 @@ router.get('/progress', auth.authenticateCookie, (req, res) => {
 router.get('/getVideos',auth.authenticateCookie, (req, res) => {
    const userToken = req.cookies.token;
    const userID = jwt.decode(userToken, tokenSecret).user_id;
-   console.log(userID)
 
    const sql = `SELECT id, original_file_name FROM videos WHERE user_id = ${userID} `; // Adjust table and column names as necessary
 
