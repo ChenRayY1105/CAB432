@@ -12,12 +12,16 @@ const tokenSecret = require("crypto").randomBytes(64).toString("hex");
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
+const ffprobePath = require('@ffprobe-installer/ffprobe').path; // Import ffprobe path from installer
+// Set ffprobe path for fluent-ffmpeg
+ffmpeg.setFfprobePath(ffprobePath);
 
 const fs = require("fs");
 const bcrypt = require('bcrypt');
 const { redirect } = require("express/lib/response.js");
 
-let progressData = {}; // Store progress data in memory for now
+let progressData = {}; // Object to keep track of progress by videoId
+let totalDuration = {}; // Store total duration of each video
 
 // A plain GET will give the login page
 router.get("/login", (req, res) => {
@@ -186,41 +190,71 @@ router.post("/transcode", auth.authenticateCookie, (req, res) =>
       const fileName = videoOriginName.split('.');
       const inputPath = path.join(__dirname, '..', 'uploads', videoOriginName);
       const outputFile = path.join(__dirname, '..', 'transcoded', `transcode-${fileName[0]}.${outputFormat}`);
+      const videoId = `${fileName[0]}-${outputFormat}`;
 
-      // Step 3: Perform transcoding
-      ffmpeg(inputPath)
-         .output(outputFile)
-         .videoCodec('libx264') // Specify a video codec (e.g., libx264 for H.264 encoding)
-
-         // .size('3840x2160') // Set resolution to 4K
-
-         // .fps(120) // Set frame rate to 120 fps
-
-         .on('progress', (progress) => {
-            console.log(`Transcoding progress - Current video time : ${progress.timemark} `);
-            console.log(`Current frame: ${progress.frames}, Current FPS: ${progress.currentFps}`);
-         })
-         .on('error', (err, stdout, stderr) => {
-            console.error("Transcoding failed: ", err.message);
-            delete progressData[videoId]; // Clean up on error
-         })
-         .on('end', () => {
-            console.log('Transcoding completed successfully');
-            
-            res.download(outputFile, function(err){
-               if (err){
-                  console.error("Download error : " + err)
-               }
-               else{
-                  console.log("Download complete : " + outputFile)
-               }
-            });
-            // res.json({ message: 'Transcoding completed successfully' });
-          })
-          .run();
-
+         // Initialize progress and total duration
+      progressData[videoId] = 0;
+      totalDuration[videoId] = 0;
+      
+      ffmpeg.ffprobe(inputPath, (err, metadata) => {
+         if (err) {
+           console.error('Error retrieving video metadata:', err);
+           return res.status(500).json({ error: 'Failed to retrieve video metadata' });
+         }
          
+         totalDuration[videoId] = metadata.format.duration; // Get total duration from metadata
 
+         // Step 3: Perform transcoding
+         ffmpeg(inputPath)
+            .output(outputFile)
+            .videoCodec('libx264') // Specify a video codec (e.g., libx264 for H.264 encoding)
+
+            .size('3840x2160') // Set resolution to 4K
+
+            // .fps(120) // Set frame rate to 120 fps
+
+            .on('progress', (progress) => {
+               if (totalDuration[videoId] > 0) {
+                  const progress_route = fetch("/progress")
+                  console.log(progress_route);
+                  
+                  // Convert timemark to seconds
+                  const timeParts = progress.timemark.split(':');
+                  const seconds =
+                  parseInt(timeParts[0], 10) * 3600 +
+                  parseInt(timeParts[1], 10) * 60 +
+                  parseFloat(timeParts[2]);
+                  
+                  // Calculate percentage based on total duration
+                  const calculatedPercent = (seconds / totalDuration[videoId]) * 100;
+                  console.log("Current progress " + calculatedPercent)
+                  progressData[videoId] = calculatedPercent.toFixed(2); // Store calculated progress
+               
+               } else {
+                  progressData[videoId] = 0; // Default to 0 if no duration is available
+               }
+            })
+            .on('error', (err, stdout, stderr) => {
+               console.error("Transcoding failed: ", err.message);
+               delete progressData[videoId]; // Clean up on error
+            })
+            .on('end', () => {
+               console.log('Transcoding completed successfully');
+               delete progressData[videoId]; // Clean up progress data on completion
+               res.download(outputFile, function(err){
+                  if (err){
+                     console.error("Download error : " + err)
+                  }
+                  else{
+                     console.log("Download complete : " + outputFile)
+                  }
+               });
+               // res.json({ message: 'Transcoding completed successfully' });
+            })
+            .run();
+
+            
+      });
    } catch (error) {
       console.error('Error during transcoding process:', error);
       res.status(500).json({ error: 'Internal Server Error' });
@@ -230,8 +264,9 @@ router.post("/transcode", auth.authenticateCookie, (req, res) =>
 
 router.get('/progress', auth.authenticateCookie, (req, res) => {
    try {
-     const videoId = req.query.videoId;
- 
+     const videoId = req.query.video_name;
+      console.log("Video name  = " + videoId)
+      console.log("progress data = " +  progressData[videoId])
      if (!videoId) {
        console.error('No video ID provided');
        return res.status(400).json({ error: 'No video ID provided' });
